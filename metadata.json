@@ -1,0 +1,5 @@
+{
+  "name": "Aegis Hunter",
+  "description": "Recursive AI Threat Hunting Engine with NL2KQL translation and automated MITRE ATT&CK pivoting.",
+  "requestFramePermissions": []
+}
