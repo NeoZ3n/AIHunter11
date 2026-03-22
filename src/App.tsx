@@ -12,7 +12,9 @@ import {
   Loader2,
   Cpu,
   Zap,
-  History
+  History,
+  UserSearch,
+  ArrowRight
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "./lib/utils";
@@ -48,6 +50,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<"dashboard" | "vault" | "report">("dashboard");
   const [vaultData, setVaultData] = useState<any>(null);
   const [selectedVaultId, setSelectedVaultId] = useState<string | null>(null);
+  const [selectedTreeIdx, setSelectedTreeIdx] = useState<number | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -56,11 +59,71 @@ export default function App() {
       .then(res => res.json())
       .then(data => {
         setVaultData(data);
-        if (Object.keys(data).length > 0) {
-          setSelectedVaultId(Object.keys(data)[0]);
+        if (data.techniques && Object.keys(data.techniques).length > 0) {
+          setSelectedVaultId(Object.keys(data.techniques)[0]);
+        }
+        if (data.attack_trees && data.attack_trees.length > 0) {
+          setSelectedTreeIdx(0);
         }
       });
   }, []);
+
+  const renderAttackTreeNode = (node: any, depth: number = 0) => {
+    return (
+      <div key={node.technique_id || node.technique} className="flex items-center">
+        <div className="flex flex-col items-center">
+          <div className="flex items-center gap-4">
+            {/* Tactic Node */}
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-16 h-16 bg-[#1A2B44] rounded-xl flex items-center justify-center border border-white/10 shadow-lg group hover:scale-110 transition-transform">
+                <UserSearch className="w-8 h-8 text-blue-400" />
+              </div>
+              <div className="text-center">
+                <p className="text-[11px] font-bold uppercase tracking-tight text-[#141414]">{node.tactic}</p>
+                <p className="text-[9px] opacity-50 font-mono">(Tactic)</p>
+              </div>
+            </div>
+
+            <div className="w-12 h-[2px] bg-gradient-to-r from-blue-400 to-blue-600 relative">
+              <ArrowRight className="absolute -right-2 -top-[7px] w-4 h-4 text-blue-600" />
+            </div>
+
+            {/* Technique Node */}
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-16 h-16 bg-[#1A2B44] rounded-xl flex items-center justify-center border border-white/10 shadow-lg group hover:scale-110 transition-transform">
+                <Activity className="w-8 h-8 text-blue-400" />
+              </div>
+              <div className="text-center">
+                <p className="text-[11px] font-bold uppercase tracking-tight text-[#141414]">{node.technique}</p>
+                <p className="text-[9px] opacity-50 font-mono">(Technique)</p>
+              </div>
+            </div>
+
+            <div className="w-12 h-[2px] bg-gradient-to-r from-blue-400 to-blue-600 relative">
+              <ArrowRight className="absolute -right-2 -top-[7px] w-4 h-4 text-blue-600" />
+            </div>
+
+            {/* Procedure Node */}
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-16 h-16 bg-[#1A2B44] rounded-xl flex items-center justify-center border border-white/10 shadow-lg group hover:scale-110 transition-transform">
+                <Terminal className="w-8 h-8 text-blue-400" />
+              </div>
+              <div className="text-center">
+                <p className="text-[11px] font-bold uppercase tracking-tight text-[#141414]">{node.procedure}</p>
+                <p className="text-[9px] opacity-50 font-mono">(Procedure)</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        {node.children && node.children.map((child: any) => (
+          <div key={child.technique_id} className="flex items-center">
+            <div className="w-12 h-[2px] bg-[#141414]/10 mx-4" />
+            {renderAttackTreeNode(child, depth + 1)}
+          </div>
+        ))}
+      </div>
+    );
+  };
 
   const handleHunt = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -176,6 +239,15 @@ export default function App() {
           <section className="border border-[#141414] p-6 bg-white shadow-[4px_4px_0px_0px_rgba(20,20,20,1)]">
             <h2 className="font-serif italic text-xs uppercase opacity-50 mb-4 tracking-widest">Initiate Hunt</h2>
             <form onSubmit={handleHunt} className="space-y-4">
+              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="bg-blue-600 text-white text-[8px] font-bold px-1.5 py-0.5 rounded uppercase">POC Prompt</div>
+                  <span className="text-[10px] font-mono text-blue-800 opacity-70">Copy & Paste:</span>
+                </div>
+                <p className="text-[10px] font-mono text-blue-900 italic leading-relaxed select-all cursor-pointer hover:text-blue-600 transition-colors" onClick={() => setPrompt("Hunt for suspicious powershell activity that might lead to credential dumping and data exfiltration.")}>
+                  "Hunt for suspicious powershell activity that might lead to credential dumping and data exfiltration."
+                </p>
+              </div>
               <div className="relative">
                 <textarea
                   value={prompt}
@@ -193,6 +265,26 @@ export default function App() {
                 {isHunting ? "Hunting..." : "Execute Recursive Hunt"}
               </button>
             </form>
+          </section>
+
+          <section className="border border-[#141414] p-6 bg-white shadow-[4px_4px_0px_0px_rgba(20,20,20,1)]">
+            <h2 className="font-serif italic text-xs uppercase opacity-50 mb-4 tracking-widest">Test Logs (POC Data)</h2>
+            <div className="space-y-2 max-h-[200px] overflow-y-auto pr-2 scrollbar-hide">
+              {[
+                { time: "08:00", event: "Phishing: Invoice.doc", host: "WKSTN-01" },
+                { time: "08:05", event: "PowerShell: Encoded", host: "WKSTN-01" },
+                { time: "08:10", event: "Schtasks: SystemUpdate", host: "WKSTN-01" },
+                { time: "08:20", event: "Mimikatz: LSASS Dump", host: "WKSTN-01" },
+                { time: "08:30", event: "RDP: DC-01 Access", host: "WKSTN-01" },
+                { time: "09:00", event: "FTP: Data Exfil", host: "DC-01" },
+              ].map((log, i) => (
+                <div key={i} className="flex items-center gap-3 p-2 border border-[#141414]/10 text-[9px] font-mono hover:bg-[#F5F5F5] transition-colors">
+                  <span className="opacity-40">{log.time}</span>
+                  <span className="font-bold text-red-600">{log.event}</span>
+                  <span className="ml-auto opacity-40">{log.host}</span>
+                </div>
+              ))}
+            </div>
           </section>
 
           <section className="border border-[#141414] p-6 bg-white shadow-[4px_4px_0px_0px_rgba(20,20,20,1)]">
@@ -334,91 +426,100 @@ export default function App() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
-                className="grid grid-cols-1 lg:grid-cols-12 gap-6"
+                className="space-y-8"
               >
-                <div className="lg:col-span-5 border border-[#141414] bg-white p-6 shadow-[4px_4px_0px_0px_rgba(20,20,20,1)]">
-                  <h3 className="font-serif italic text-xs uppercase opacity-50 mb-6 tracking-widest">Scenario Vault</h3>
-                  <div className="space-y-4">
-                    {vaultData && Object.entries(vaultData).map(([id, s]: [string, any]) => (
-                      <div 
-                        key={id} 
-                        onClick={() => setSelectedVaultId(id)}
-                        className={cn(
-                          "p-4 border flex items-center justify-between group cursor-pointer transition-all",
-                          selectedVaultId === id 
-                            ? "bg-[#141414] text-white border-[#141414]" 
-                            : "bg-white border-[#141414]/10 hover:border-[#141414]"
-                        )}
-                      >
-                        <div>
-                          <p className="text-[10px] font-mono opacity-60 group-hover:opacity-100">{id}</p>
-                          <p className="text-xs font-bold uppercase tracking-tight">{s.name}</p>
+                {/* Full Attack Scenarios (Attack Trees) */}
+                <div className="border border-[#141414] bg-white p-6 shadow-[8px_8px_0px_0px_rgba(20,20,20,1)]">
+                  <h3 className="font-serif italic text-xs uppercase opacity-50 mb-6 tracking-widest">Full Attack Scenarios (Attack Trees)</h3>
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                    <div className="lg:col-span-4 space-y-3">
+                      {vaultData?.attack_trees?.map((tree: any, idx: number) => (
+                        <div 
+                          key={idx}
+                          onClick={() => setSelectedTreeIdx(idx)}
+                          className={cn(
+                            "p-4 border border-[#141414] cursor-pointer transition-all",
+                            selectedTreeIdx === idx ? "bg-[#141414] text-white" : "bg-white hover:bg-[#F5F5F5]"
+                          )}
+                        >
+                          <p className="text-xs font-bold uppercase tracking-tight">{tree.scenario_name}</p>
+                          <p className="text-[10px] opacity-60 mt-1 leading-relaxed">{tree.description}</p>
                         </div>
-                        <ChevronRight className={cn("w-4 h-4 opacity-30 group-hover:opacity-100", selectedVaultId === id && "opacity-100")} />
+                      ))}
+                    </div>
+                    <div className="lg:col-span-8 bg-[#F5F5F5] p-6 border border-[#141414] overflow-x-auto">
+                      <div className="min-w-[400px]">
+                        {selectedTreeIdx !== null && vaultData?.attack_trees?.[selectedTreeIdx] && (
+                          renderAttackTreeNode(vaultData.attack_trees[selectedTreeIdx].root)
+                        )}
                       </div>
-                    ))}
+                    </div>
                   </div>
                 </div>
 
-                <div className="lg:col-span-7 space-y-6">
-                  {selectedVaultId && vaultData?.[selectedVaultId] && (
-                    <div className="border border-[#141414] bg-white p-6 shadow-[4px_4px_0px_0px_rgba(20,20,20,1)]">
-                      <div className="flex items-center justify-between mb-6">
-                        <h4 className="text-lg font-bold uppercase tracking-tighter">{vaultData[selectedVaultId].name}</h4>
-                        <span className="text-xs font-mono bg-[#141414] text-white px-2 py-1">{selectedVaultId}</span>
-                      </div>
-                      
-                      <div className="space-y-6">
-                        <div>
-                          <h5 className="font-serif italic text-[10px] uppercase opacity-50 mb-2 tracking-widest">Objective & Execution</h5>
-                          <p className="text-sm leading-relaxed opacity-80">{vaultData[selectedVaultId].description}</p>
+                {/* Technique Intelligence */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                  <div className="lg:col-span-5 border border-[#141414] bg-white p-6 shadow-[4px_4px_0px_0px_rgba(20,20,20,1)]">
+                    <h3 className="font-serif italic text-xs uppercase opacity-50 mb-6 tracking-widest">Technique Intelligence</h3>
+                    <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 scrollbar-hide">
+                      {vaultData?.techniques && Object.entries(vaultData.techniques).map(([id, s]: [string, any]) => (
+                        <div 
+                          key={id} 
+                          onClick={() => setSelectedVaultId(id)}
+                          className={cn(
+                            "p-4 border flex items-center justify-between group cursor-pointer transition-all",
+                            selectedVaultId === id 
+                              ? "bg-[#141414] text-white border-[#141414]" 
+                              : "bg-white border-[#141414]/10 hover:border-[#141414]"
+                          )}
+                        >
+                          <div>
+                            <p className="text-[10px] font-mono opacity-60 group-hover:opacity-100">{id}</p>
+                            <p className="text-xs font-bold uppercase tracking-tight">{s.name}</p>
+                          </div>
+                          <ChevronRight className={cn("w-4 h-4 opacity-30 group-hover:opacity-100", selectedVaultId === id && "opacity-100")} />
                         </div>
+                      ))}
+                    </div>
+                  </div>
 
-                        <div>
-                          <h5 className="font-serif italic text-[10px] uppercase opacity-50 mb-2 tracking-widest">Data Sources for Detection</h5>
-                          <div className="flex flex-wrap gap-2">
-                            {vaultData[selectedVaultId].data_sources?.map((source: string, idx: number) => (
-                              <span key={idx} className="text-[10px] font-mono border border-[#141414] px-2 py-1 bg-[#F5F5F5]">
-                                {source}
-                              </span>
-                            ))}
+                  <div className="lg:col-span-7 space-y-6">
+                    {selectedVaultId && vaultData?.techniques?.[selectedVaultId] && (
+                      <div className="border border-[#141414] bg-white p-6 shadow-[4px_4px_0px_0px_rgba(20,20,20,1)]">
+                        <div className="flex items-center justify-between mb-6">
+                          <div>
+                            <span className="text-[8px] font-mono uppercase opacity-50 block mb-1">{vaultData.techniques[selectedVaultId].tactic}</span>
+                            <h4 className="text-lg font-bold uppercase tracking-tighter">{vaultData.techniques[selectedVaultId].name}</h4>
+                          </div>
+                          <span className="text-xs font-mono bg-[#141414] text-white px-2 py-1">{selectedVaultId}</span>
+                        </div>
+                        
+                        <div className="space-y-6">
+                          <div>
+                            <h5 className="font-serif italic text-[10px] uppercase opacity-50 mb-2 tracking-widest">Objective & Execution</h5>
+                            <p className="text-sm leading-relaxed opacity-80">{vaultData.techniques[selectedVaultId].description}</p>
+                          </div>
+
+                          <div>
+                            <h5 className="font-serif italic text-[10px] uppercase opacity-50 mb-2 tracking-widest">Typical Procedure</h5>
+                            <p className="text-xs font-mono p-3 bg-[#F5F5F5] border border-[#141414]/10 leading-relaxed">
+                              {vaultData.techniques[selectedVaultId].procedure}
+                            </p>
+                          </div>
+
+                          <div>
+                            <h5 className="font-serif italic text-[10px] uppercase opacity-50 mb-2 tracking-widest">Data Sources for Detection</h5>
+                            <div className="flex flex-wrap gap-2">
+                              {vaultData.techniques[selectedVaultId].data_sources?.map((source: string, idx: number) => (
+                                <span key={idx} className="text-[10px] font-mono border border-[#141414] px-2 py-1 bg-[#F5F5F5]">
+                                  {source}
+                                </span>
+                              ))}
+                            </div>
                           </div>
                         </div>
-
-                        <div>
-                          <h5 className="font-serif italic text-[10px] uppercase opacity-50 mb-2 tracking-widest">Automated Pivot Stages</h5>
-                          <div className="space-y-2">
-                            {vaultData[selectedVaultId].next_stages.map((stage: any, idx: number) => (
-                              <div key={idx} className="flex items-center gap-3 text-[10px] font-mono p-2 border border-dashed border-[#141414]/30">
-                                <span className="bg-[#141414] text-white w-4 h-4 flex items-center justify-center rounded-full text-[8px]">{idx + 1}</span>
-                                <span className="font-bold">{stage.stage}</span>
-                                <span className="opacity-50 ml-auto">{stage.technique}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
                       </div>
-                    </div>
-                  )}
-
-                  <div className="border border-[#141414] bg-[#141414] text-[#E4E3E0] p-6 shadow-[4px_4px_0px_0px_rgba(20,20,20,1)]">
-                    <h3 className="font-serif italic text-xs uppercase opacity-50 mb-6 tracking-widest text-white/50">System Architecture</h3>
-                    <div className="grid grid-cols-2 gap-6">
-                      <div className="flex gap-4">
-                        <Cpu className="w-8 h-8 opacity-50 shrink-0" />
-                        <div>
-                          <p className="text-[10px] font-mono uppercase text-white/40">Orchestrator</p>
-                          <p className="text-[10px] leading-relaxed">State machine managing the search-detect-pivot loop. Localized to host.name and time windows.</p>
-                        </div>
-                      </div>
-                      <div className="flex gap-4">
-                        <Terminal className="w-8 h-8 opacity-50 shrink-0" />
-                        <div>
-                          <p className="text-[10px] font-mono uppercase text-white/40">Intelligence Layer</p>
-                          <p className="text-[10px] leading-relaxed">Gemini-3-Flash handles NL2KQL translation and forensic synthesis of raw JSON hits.</p>
-                        </div>
-                      </div>
-                    </div>
+                    )}
                   </div>
                 </div>
               </motion.div>

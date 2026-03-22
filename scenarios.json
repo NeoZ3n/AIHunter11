@@ -1,57 +1,150 @@
 {
+  "techniques": {
+    "T1566.001": {
+      "tactic": "Initial Access",
+      "name": "Spearphishing Attachment",
+      "description": "Adversaries may send spearphishing messages with a malicious attachment.",
+      "data_sources": ["Email gateway logs", "File system monitoring"],
+      "procedure": "User opens 'Invoice.doc' macro"
+    },
+    "T1059.001": {
+      "tactic": "Execution",
+      "name": "PowerShell",
+      "description": "Adversaries may abuse PowerShell to execute various commands and scripts.",
+      "data_sources": ["Process monitoring", "PowerShell Script Block Logging"],
+      "procedure": "Execution of base64 encoded strings"
+    },
+    "T1053.005": {
+      "tactic": "Persistence",
+      "name": "Scheduled Task",
+      "description": "Adversaries may abuse the Windows Task Scheduler.",
+      "data_sources": ["Scheduled Task creation events"],
+      "procedure": "Creation of 'SystemUpdate' task"
+    },
+    "T1003.001": {
+      "tactic": "Credential Access",
+      "name": "LSASS Memory",
+      "description": "Adversaries may attempt to access credential material stored in LSASS.",
+      "data_sources": ["Sysmon EID 10"],
+      "procedure": "Mimikatz LSASS dump"
+    },
+    "T1110.003": {
+      "tactic": "Credential Access",
+      "name": "Brute Force",
+      "description": "Adversaries may use brute force techniques to gain access to accounts.",
+      "data_sources": ["Authentication logs"],
+      "procedure": "Password Spraying"
+    },
+    "T1021.001": {
+      "tactic": "Lateral Movement",
+      "name": "Remote Desktop Protocol",
+      "description": "Adversaries may use RDP to move laterally.",
+      "data_sources": ["Network logs (3389)"],
+      "procedure": "RDP to DC-01"
+    },
+    "T1048": {
+      "tactic": "Exfiltration",
+      "name": "Exfiltration Over Alternative Protocol",
+      "description": "Adversaries may steal data over alternative protocols.",
+      "data_sources": ["Network traffic analysis"],
+      "procedure": "FTP Exfiltration"
+    }
+  },
+  "attack_trees": [
+    {
+      "scenario_name": "Credential Access Flow",
+      "description": "Visualizing the path from Tactic to Procedure as requested.",
+      "root": {
+        "tactic": "Credential access",
+        "technique": "Brute force",
+        "procedure": "Password spraying",
+        "technique_id": "T1110.003"
+      }
+    },
+    {
+      "scenario_name": "APT Exfiltration Chain",
+      "description": "Full lifecycle from Phishing to Exfiltration.",
+      "root": {
+        "tactic": "Initial Access",
+        "technique": "Spearphishing",
+        "procedure": "Invoice.doc macro",
+        "technique_id": "T1566.001",
+        "children": [
+          {
+            "tactic": "Execution",
+            "technique": "PowerShell",
+            "procedure": "Encoded Command",
+            "technique_id": "T1059.001",
+            "children": [
+              {
+                "tactic": "Persistence",
+                "technique": "Scheduled Task",
+                "procedure": "SystemUpdate task",
+                "technique_id": "T1053.005",
+                "children": [
+                  {
+                    "tactic": "Credential Access",
+                    "technique": "LSASS Dump",
+                    "procedure": "Mimikatz",
+                    "technique_id": "T1003.001",
+                    "children": [
+                      {
+                        "tactic": "Lateral Movement",
+                        "technique": "RDP",
+                        "procedure": "DC-01 Access",
+                        "technique_id": "T1021.001",
+                        "children": [
+                          {
+                            "tactic": "Exfiltration",
+                            "technique": "FTP",
+                            "procedure": "Data Steal",
+                            "technique_id": "T1048"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
   "T1059.001": {
-    "name": "PowerShell Execution",
-    "description": "Adversaries may abuse PowerShell to execute various commands and scripts. PowerShell is a powerful interactive command-line shell and scripting language that is built on the .NET framework. Adversaries use it for a wide range of activities, including discovery, execution, and persistence, often leveraging its ability to run code in memory to bypass traditional disk-based detection.",
-    "data_sources": [
-      "Process monitoring (Event ID 4688)",
-      "PowerShell Script Block Logging (Event ID 4104)",
-      "PowerShell Transcription (Event ID 4103)",
-      "Command-line arguments"
-    ],
     "next_stages": [
       {
         "stage": "Persistence - Scheduled Task",
         "technique": "T1053.005",
         "query": "process.name: \"schtasks.exe\" OR process.command_line: \"/create\""
-      },
-      {
-        "stage": "Credential Access - LSASS Dump",
-        "technique": "T1003.001",
-        "query": "process.name: \"mimikatz.exe\" OR process.target.name: \"lsass.exe\""
       }
     ]
   },
   "T1053.005": {
-    "name": "Scheduled Task",
-    "description": "Adversaries may abuse the Windows Task Scheduler to facilitate initial or recurring execution of malicious code. By creating a scheduled task, an attacker can ensure their payload runs at specific intervals, upon system boot, or when a specific user logs in. This provides a reliable method for maintaining persistence and can also be used for remote execution if the attacker has administrative privileges.",
-    "data_sources": [
-      "Scheduled Task creation events (Event ID 4698)",
-      "Process monitoring for schtasks.exe",
-      "Windows Registry modifications (HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Schedule\\TaskCache\\Tree)",
-      "File system monitoring for task files in C:\\Windows\\System32\\Tasks"
-    ],
     "next_stages": [
       {
-        "stage": "Execution - Command and Scripting Interpreter",
-        "technique": "T1059",
-        "query": "process.name: \"cmd.exe\" OR process.name: \"powershell.exe\""
+        "stage": "Credential Access - LSASS Dump",
+        "technique": "T1003.001",
+        "query": "process.name: \"mimikatz.exe\""
       }
     ]
   },
   "T1003.001": {
-    "name": "LSASS Memory",
-    "description": "Adversaries may attempt to access credential material stored in the process memory of the Local Security Authority Subsystem Service (LSASS). This process often contains plaintext passwords, NTLM hashes, and Kerberos tickets for logged-in users. Attackers typically use tools like Mimikatz or built-in Windows utilities like Procdump to create a memory dump of LSASS, which is then parsed to extract sensitive credentials.",
-    "data_sources": [
-      "Process access events (Event ID 10 in Sysmon)",
-      "Process creation events for mimikatz.exe or procdump.exe",
-      "File system monitoring for .dmp files created by LSASS",
-      "Handle monitoring for lsass.exe"
-    ],
     "next_stages": [
       {
-        "stage": "Exfiltration - Over Alternative Protocol",
+        "stage": "Lateral Movement - RDP",
+        "technique": "T1021.001",
+        "query": "network.destination_port: 3389"
+      }
+    ]
+  },
+  "T1021.001": {
+    "next_stages": [
+      {
+        "stage": "Exfiltration - Alternative Protocol",
         "technique": "T1048",
-        "query": "network.protocol: \"ftp\" OR network.protocol: \"http\""
+        "query": "network.protocol: \"ftp\""
       }
     ]
   }
